@@ -3,6 +3,7 @@ import numpy as np
 from fontTools.misc.cython import returns
 from gurobipy import Model, GRB
 import pandas as pd
+import ast
 import scipy
 from numpy.ma.core import shape
 
@@ -53,26 +54,34 @@ small_dim = 50
 
 dist = pd.read_csv("TFP-data-master/imdbSPdist3digits.txt", header=None, index_col=False)
 dist = dist.drop(dist.columns[dim], axis=1)
-print(dist)
 
 small_dist = dist.iloc[:small_dim, :small_dim]
-print(small_dist)
 
 
 P =  np.triu(dist, k=1)
 small_P = np.triu(small_dist, k=1)
-print(small_P)
 
 
 skills = pd.read_csv("TFP-data-master/imdbskills.txt", sep="\t", header=None, index_col=False)
 skills.fillna(0, inplace=True)
 skills = skills.astype(int)
 small_skills = skills.iloc[:small_dim]
-print(small_skills)
-print(skills[5].T)
-print("data types")
+
 vector = small_skills[5].values
-print(vector.shape)
+
+
+
+# test models with random sets of skills
+req_skill_sets = pd.read_csv("TFP-data-master/imdb_instance_information.txt", sep="\t", index_col=False)
+
+def get_req_skills(m, seed):
+    row =  req_skill_sets.loc[(req_skill_sets['m'].eq(m)) & req_skill_sets['seed'].eq(f"seed={seed}")]
+    req_skills  = row["skills"].values
+    req_skills = ast.literal_eval(req_skills[0])
+    print(req_skills)
+    return req_skills
+
+
 
 # N_size: size of set of candidates
 # req_skills: set of skills required on the team
@@ -86,22 +95,26 @@ def first_model(N_size, req_skills):
     print(y.shape)
 
     # Set objective
-    obj = (small_P@y)@y
+    obj = (P@y)@y
     m.setObjective(obj)
 
     # Add constraint: a skill is covered
 
     for skill_no in req_skills:
 
-        m.addConstr(small_skills[skill_no].values @ y >= 1 )
+        m.addConstr(skills[skill_no].values @ y >= 1 )
 
 
     m.optimize()
 
     for v in m.getVars():
-        print(f"{v.VarName} {v.X:g}")
+       if v.X >0:
+           print(f"{v.VarName} {v.X:g}")
 
     print(f"Obj: {m.ObjVal:g}")
 
 
-first_model(small_dim, [3,4,5,6,11,12,19,20,23,26])
+first_model(dim, get_req_skills(4, 7))
+
+print(skills.loc[[30]])
+
