@@ -1,86 +1,10 @@
-# a
-import numpy as np
-from fontTools.misc.cython import returns
 from gurobipy import Model, GRB
-import pandas as pd
-import ast
-import scipy
-from numpy.ma.core import shape
+from data_importer import*
 
 
-## Quadratic programming example
-def test():
-
-    # model
-    m = Model("qp")
-
-    # Create variables
-    x = m.addVar(ub=1.0, name="x")
-    y = m.addVar(ub=1.0, name="y")
-    z = m.addVar(ub=1.0, name="z")
-
-    # Set objective: x^2 + x*y + y^2 + y*z + z^2 + 2 x
-    obj = x**2 + x * y + y**2 + y * z + z**2 + 2 * x
-    m.setObjective(obj)
-
-    # Add constraint: x + 2 y + 3 z >= 4
-    m.addConstr(x + 2 * y + 3 * z >= 4, "c0")
-
-    # Add constraint: x + y >= 1
-    m.addConstr(x + y >= 1, "c1")
-
-    m.optimize()
-
-    for v in m.getVars():
-        print(f"{v.VarName} {v.X:g}")
-
-    print(f"Obj: {m.ObjVal:g}")
-
-    x.VType = GRB.INTEGER
-    y.VType = GRB.INTEGER
-    z.VType = GRB.INTEGER
-
-    m.optimize()
-
-    for v in m.getVars():
-        print(f"{v.VarName} {v.X:g}")
-
-    print(f"Obj: {m.ObjVal:g}")
-
-
-# Import data
 dim = 1021
-small_dim = 50
-
-dist = pd.read_csv("TFP-data-master/imdbSPdist3digits.txt", header=None, index_col=False)
-dist = dist.drop(dist.columns[dim], axis=1)
-
-small_dist = dist.iloc[:small_dim, :small_dim]
-
-
-P =  np.triu(dist, k=1)
-small_P = np.triu(small_dist, k=1)
-
-
-skills = pd.read_csv("TFP-data-master/imdbskills.txt", sep="\t", header=None, index_col=False)
-skills.fillna(0, inplace=True)
-skills = skills.astype(int)
-small_skills = skills.iloc[:small_dim]
-
-vector = small_skills[5].values
-
-
-
-# test models with random sets of skills
-req_skill_sets = pd.read_csv("TFP-data-master/imdb_instance_information.txt", sep="\t", index_col=False)
-
-def get_req_skills(m, seed):
-    row =  req_skill_sets.loc[(req_skill_sets['m'].eq(m)) & req_skill_sets['seed'].eq(f"seed={seed}")]
-    req_skills  = row["skills"].values
-    req_skills = ast.literal_eval(req_skills[0])
-    print(req_skills)
-    return req_skills
-
+P, skills = read_data()
+print(skills)
 
 
 # N_size: size of set of candidates
@@ -114,7 +38,7 @@ def first_model(N_size, req_skills):
     print(f"Obj: {m.ObjVal:g}")
 
 
-first_model(dim, get_req_skills(4, 7))
+first_model(dim, get_req_skills(4, 8))
 
 print(skills.loc[[30]])
 
