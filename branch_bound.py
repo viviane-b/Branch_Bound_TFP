@@ -19,12 +19,13 @@ skills = [[1, 0, 0],    # round
           [1, 0, 0]]
 
 
+big_Number = 10000000
 
 P_symmetric = P + np.transpose(P)
 
 req_skills = get_req_skills(4, 8)
 # from example
-req_skills = [1,1,1]
+req_skills = [0,1,2]
 
 # there are N candidates
 
@@ -32,7 +33,7 @@ def branch_bound():
     node_counter = 0
     queue = list[Node]
 
-    ub = np.inf     # upper bound
+    ub = big_Number     # upper bound
     T = None        # incumbent solution
 
     # Create root node 0
@@ -41,8 +42,6 @@ def branch_bound():
     for n in range(dim):
         zeta_opt, value_opt = solve_subproblem(n, root.get_C1(), root.get_C2())
         root.set_sub_value(value_opt, n)
-
-        # TODO why does set_sub_value not seem to work?
 
         root.set_zeta(zeta_opt, n)
 
@@ -72,7 +71,7 @@ def branch_bound():
     if team_cost < ub:
         ub = team_cost
         T = y_opt
-
+    print(f"lb = {lb}, ub = {ub}")
 
     #  if LB<UB, then Q= {0}
     if lb < ub:
@@ -80,8 +79,8 @@ def branch_bound():
 
 
     while lb < ub:
-        # next node is the one in the queue that has the minimum value
-        min_v = np.inf
+        # next node is the one in the queue that has the minimum value: best-first-search
+        min_v = big_Number
         if len(queue) ==0:
             # TODO: algo is over?
             break
@@ -89,8 +88,13 @@ def branch_bound():
         for elem in queue:      # TODO: optimize finding the min
             if elem.get_value() < min_v:
                 curr_node = elem
+                min_v = curr_node.get_value()
+            elif elem.get_value() == min_v:     # if both nodes have the same value, we take the node with the smallest id
+                if elem.get_l() < curr_node.get_l():
+                    curr_node = elem
+                    min_v = curr_node.get_value()
 
-        queue.pop(curr_node)
+        queue.remove(curr_node)
 
         # {i,j}: BranchPair( node.y∗ , node.z∗)
         pair = branch_pair(curr_node.get_y_star(), curr_node.get_z_star())
@@ -100,15 +104,20 @@ def branch_bound():
         # Create child node l1
         node_counter += 1
         child1 = Node(node_counter)
+        print(f"child 1 created, #{node_counter}, from parent node #{curr_node.get_l()}")
 
-        child1.set_sub_values(curr_node.get_sub_values())
-        child1.set_zetas(curr_node.get_zetas())
-        child1.set_value(np.inf)
+        child1.set_sub_values(curr_node.get_sub_values().copy())
+        child1.set_zetas(curr_node.get_zetas().copy())
+        child1.set_value(big_Number)
 
-        new_C1 = curr_node.get_C1()
+        new_C1 = curr_node.get_C1().copy()
         new_C1.append(pair)
         child1.set_C1(new_C1)      # pair should not be on the same team
-        child1.set_C2(curr_node.get_C2())
+        child1.set_C2(curr_node.get_C2().copy())
+        print(f"CHILD 1 \n C1: {child1.get_C1()}")
+        print(f"C2: {child1.get_C2()}")
+        print(f"zetas: {child1.get_zetas()}")
+        print(f"sub_values: {child1.get_sub_values()}")
 
         if child1.get_zetas()[i][j] == 1:
             # Solve Pr_i
@@ -126,9 +135,10 @@ def branch_bound():
                 if team_cost < ub:
                     ub = team_cost
                     T = opt_team
+                print(f"lb = {lb}, ub = {ub}")
 
             else:
-                child1.set_sub_value(np.inf, i)
+                child1.set_sub_value(big_Number, i)
 
         if child1.get_zetas()[j][i] == 1:
             # Solve Pr_j
@@ -146,13 +156,14 @@ def branch_bound():
                 if team_cost < ub:
                     ub = team_cost
                     T = opt_team
+                print(f"lb = {lb}, ub = {ub}")
 
             else:
-                child1.set_sub_value(np.inf, j)
+                child1.set_sub_value(big_Number, j)
 
         # Solve relaxed master problem
         y_opt, master_val_opt = solve_master_problem(child1.get_sub_values(), child1.get_C1(), child1.get_C2())
-        if y_opt is not None and master_val_opt is not None:
+        if y_opt is not None and master_val_opt is not None:    # else prune by infeasibility
             child1.set_y_star(y_opt)
             child1.compute_z_values()
             child1.set_value(master_val_opt)
@@ -162,24 +173,29 @@ def branch_bound():
             if team_cost < ub:
                 ub = team_cost
                 T = y_opt
+            print(f"lb = {lb}, ub = {ub}")
 
-            if child1.get_value() < ub:
+            if child1.get_value() < ub:     # else prune by bound
                 # Add this node to the queue to be branched again
                 queue.append(child1)
 
+        print(f"node #{child1.get_l()} zetas = {child1.get_zetas()} \n")
 
         # Create node l2
         node_counter += 1
         child2 = Node(node_counter)
+        print(f"child 2 created, #{node_counter}, from parent node #{curr_node.get_l()} ")
 
-        child2.set_sub_values(curr_node.get_sub_values())
-        child2.set_zetas(curr_node.get_zetas())
-        child2.set_value(np.inf)
+        child2.set_sub_values(curr_node.get_sub_values().copy())
+        child2.set_zetas(curr_node.get_zetas().copy())
+        child2.set_value(big_Number)
 
-        new_C2 = curr_node.get_C2()
+        new_C2 = curr_node.get_C2().copy()
         new_C2.append(pair)
-        child2.set_C1(curr_node.get_C1())
+        child2.set_C1(curr_node.get_C1().copy())
+        print(f"child 2 C1 = {child2.get_C1()}")
         child2.set_C2(new_C2)           # i and j should be in the same team
+        print(f"child 2 C2 = {child2.get_C2()}")
 
         if child2.get_zetas()[i][j] == 0:
             # Solve Pr_i
@@ -197,9 +213,10 @@ def branch_bound():
                 if team_cost < ub:
                     ub = team_cost
                     T = opt_team
+                print(f"lb = {lb}, ub = {ub}")
 
             else:
-                child2.set_sub_value(np.inf, i)
+                child2.set_sub_value(big_Number, i)
 
         if child2.get_zetas()[j][i] == 0:
             # Solve Pr_j
@@ -217,13 +234,14 @@ def branch_bound():
                 if team_cost < ub:
                     ub = team_cost
                     T = opt_team
+                print(f"lb = {lb}, ub = {ub}")
 
             else:
-                child2.set_sub_value(np.inf, j)
+                child2.set_sub_value(big_Number, j)
 
         # Solve relaxed master problem
         y_opt, master_val_opt = solve_master_problem(child2.get_sub_values(), child2.get_C1(), child2.get_C2())
-        if y_opt is not None and master_val_opt is not None:
+        if y_opt is not None and master_val_opt is not None:    # else prune by infeasibility
             child2.set_y_star(y_opt)
             child2.compute_z_values()
             child2.set_value(master_val_opt)
@@ -233,13 +251,15 @@ def branch_bound():
             if team_cost < ub:
                 ub = team_cost
                 T = y_opt
+            print(f"lb = {lb}, ub = {ub}")
 
-            if child2.get_value() < ub:
+            if child2.get_value() < ub:     # else prune by bound
                 # Add this node to the queue to be branched again
                 queue.append(child2)
+        print(f"node #{child2.get_l()} zetas = {child2.get_zetas()} \n")
 
         # Compute lower bound
-        min_v = np.inf
+        min_v = big_Number
         for node in queue:
             if node.get_value() < min_v:
                 min_v = node.get_value()
@@ -255,7 +275,8 @@ def branch_pair(y:list[bool], z:list[list[bool]]) -> tuple[int]:
             for j in range (i+1, dim):
                 if y[j] and not z[i][j] and not z[j][i]:        # type 1 pair
                     pair = [i, j]
-                    break
+                    print("type 1 pair")
+                    return pair
 
     if pair is None:
         for i in range(dim):
@@ -263,7 +284,9 @@ def branch_pair(y:list[bool], z:list[list[bool]]) -> tuple[int]:
                 for j in range (i+1, dim):
                     if y[j] and  z[i][j] != z[j][i]:            # type 2 pair
                         pair = [i,j]
-                        break
+                        print("type 2 pair")
+                        return pair
+    print(f"pair = {pair}")
     return pair
 
 
@@ -272,18 +295,19 @@ def compute_team_cost(x:list[bool]):
 
 
 def solve_subproblem(n:int, C1:list[tuple[int]], C2:list[tuple[int]]):
+    print("\n ---- solving subproblem n=", n)
     m = Model("subproblem")
 
     zeta = m.addMVar(shape=dim, name="zeta", vtype=GRB.BINARY)
 
-    obj = np.sum(P_symmetric[i][n] * zeta[i] for i in range (0, n)) + np.sum(P_symmetric[i][n] * zeta[i] for i in range (n + 1, dim))
+    obj = sum(P_symmetric[i][n] * zeta[i] for i in range (0, n)) + sum(P_symmetric[i][n] * zeta[i] for i in range (n + 1, dim))
     m.setObjective(obj, GRB.MINIMIZE)
 
     # All skills should be covered
     for skill_no in req_skills:
         if skills[n][skill_no] == 0:    # candidate n does not possess the skill. Another member of the team has to have it
-            m.addConstr(np.sum(skills[i][skill_no] * zeta[i] for i in range (0, n))
-                        +np.sum(skills[i][skill_no] * zeta[i] for i in range (n+1, dim)) >= 1)
+            m.addConstr(sum(skills[i][skill_no] * zeta[i] for i in range (0, n))
+                        +sum(skills[i][skill_no] * zeta[i] for i in range (n+1, dim)) >= 1)
 
     for pair in C1:    # pair of candidates that should not be on the same team
         if n in pair:   # check only pairs that contain n       # TODO: maybe some optimization on the loop?
@@ -295,14 +319,19 @@ def solve_subproblem(n:int, C1:list[tuple[int]], C2:list[tuple[int]]):
             i = pair[0] if pair[0] != n else pair[1]
             m.addConstr(zeta[i]==1)
 
+    m.setParam('OutputFlag', 0)
     m.optimize()
     if m.status == GRB.OPTIMAL:
         zeta_opt = m.getAttr("X", m.getVars())
         value_opt = m.ObjVal
 
+
+        print(f"zeta_opt = {zeta_opt}")
+        print(f"value_opt = {value_opt})")
         return zeta_opt, value_opt
 
     elif m.status == GRB.INFEASIBLE:
+        print("unfeasible")
         return None, None
 
     # TODO what if status is FEASIBLE  or other?
@@ -310,16 +339,18 @@ def solve_subproblem(n:int, C1:list[tuple[int]], C2:list[tuple[int]]):
 
 # v: values of the subproblems. Size N
 def solve_master_problem(v:list[float], C1:list[tuple[int]], C2:list[tuple[int]]):
+    print("\n ----- solving master problem")
+
     m = Model("master_problem")
 
     y = m.addMVar(shape=dim, name="y", vtype=GRB.BINARY)
 
-    obj = np.sum(v[j]*y[j] for j in range (dim))/2
+    obj = sum(v[j]*y[j] for j in range (dim))/2
     m.setObjective(obj, GRB.MINIMIZE)
 
     # All skills should be covered
     for skill_no in req_skills:
-        m.addConstr(np.sum(skills[j][skill_no]*y[j] for j in range(dim)) >= 1)
+        m.addConstr(sum(skills[j][skill_no]*y[j] for j in range(dim)) >= 1)
 
     for pair in C1:     # pair of candidates that should not be on the same team
         m.addConstr(y[pair[0]] + y[pair[1]] <= 1)
@@ -328,6 +359,7 @@ def solve_master_problem(v:list[float], C1:list[tuple[int]], C2:list[tuple[int]]
         m.addConstr(y[pair[0]] == 1)
         m.addConstr(y[pair[1]] == 1)
 
+    m.setParam('OutputFlag', 0)
     m.optimize()
 
     if m.status == GRB.OPTIMAL:
@@ -335,9 +367,13 @@ def solve_master_problem(v:list[float], C1:list[tuple[int]], C2:list[tuple[int]]
         y_opt = m.getAttr("X", m.getVars())
         val_opt = m.ObjVal
 
+        print(f"subproblem y_opt = {y_opt}")
+        print(f"subproblem val_opt = {val_opt}")
+
         return y_opt, val_opt
 
     elif m.status == GRB.INFEASIBLE:
+        print("unfeasible")
         return None, None
 
 
@@ -359,6 +395,7 @@ class Node:
         self.zetas = [[None for j in range(dim)] for i in range(dim)]
         self.z_star = [[None for j in range(dim)] for i in range(dim)]
 
+    def get_l(self): return self.l
     def set_value(self, value:float): self.value = value
 
     def set_C1(self, C1: list[tuple[int]]): self.C1 = C1
@@ -405,7 +442,7 @@ class RootNode(Node):
     def __init__(self, l:int):
         super().__init__(l)
         self.l = 0
-        self.value = np.inf
+        self.value = big_Number
         self.C1 = []
         self.C2 = []
 

@@ -37,7 +37,6 @@ def first_model(N_size, req_skills):
 
     print(f"Obj: {m.ObjVal:g}")
 
-
 first_model(dim, get_req_skills(4, 8))
 
 print(skills.loc[[30]])
