@@ -61,6 +61,7 @@ def preprocess_P(P:list[list[float]], skills:[list[list[bool]]], req_skills:list
     processed_P = np.delete(processed_P, candidates_to_delete, axis=1)
     processed_skills = np.delete(processed_skills, candidates_to_delete, axis=0)
 
+
     return processed_P, processed_skills
 
 """

@@ -1,17 +1,16 @@
 import time
 
 import numpy as np
-from data_importer import *
 from Node import *
 from solvers import *
 
 # dim = 1021
 
-P, skills = read_data()
-req_skills = get_req_skills(10, 7)
-P, skills = preprocess_P(P, skills, req_skills )
-dim = len(P)
-print(dim)
+# P, skills = read_data()
+# req_skills = get_req_skills(4, 4)
+# P, skills = preprocess_P(P, skills, req_skills )
+# dim = len(P)
+# print(dim)
 
 # example of network from the paper
 """
@@ -31,13 +30,15 @@ req_skills = [0,1,2]
 """
 
 big_Number = 10000000
+eps = 0.0001
 
-P_symmetric = P + np.transpose(P)
 
 
 # there are N candidates
 
-def branch_bound():
+def branch_bound(P:list[list[float]], skills:list[list[bool]], req_skills:list[int], dim:int) :
+    P_symmetric = P + np.transpose(P)
+
     node_counter = 0
     queue = list[Node]
 
@@ -66,7 +67,7 @@ def branch_bound():
         # compute cost of the team
         opt_team = zeta_opt
         opt_team[n] = 1         # n is in the team of subproblem n
-        team_cost = compute_team_cost(opt_team)
+        team_cost = compute_team_cost(opt_team, P)
 
         # update UB and T if possible.
         if team_cost < ub:
@@ -85,7 +86,7 @@ def branch_bound():
 
 
     # Update UB and T if possible
-    team_cost = compute_team_cost(y_opt)
+    team_cost = compute_team_cost(y_opt, P)
     if team_cost < ub:
         ub = team_cost
         T = y_opt
@@ -96,7 +97,7 @@ def branch_bound():
         queue = [root]
 
 
-    while lb < ub:
+    while lb+eps < ub:
         # next node is the one in the queue that has the minimum value: best-first-search
         min_v = big_Number
         if len(queue) ==0:
@@ -115,7 +116,8 @@ def branch_bound():
         queue.remove(curr_node)
 
         # {i,j}: BranchPair( node.y∗ , node.z∗)
-        pair = branch_pair(curr_node.get_y_star(), curr_node.get_z_star())
+        pair = branch_pair(curr_node.get_y_star(), curr_node.get_z_star(), dim)
+
         i = pair[0]
         j = pair[1]
 
@@ -147,7 +149,7 @@ def branch_bound():
 
                 opt_team = zeta_opt
                 opt_team[i] = 1  # i is in the team of subproblem i
-                team_cost = compute_team_cost(opt_team)
+                team_cost = compute_team_cost(opt_team, P)
 
                 # update UB and T if possible.
                 if team_cost < ub:
@@ -168,7 +170,7 @@ def branch_bound():
 
                 opt_team = zeta_opt
                 opt_team[j] = 1  # j is in the team of subproblem j
-                team_cost = compute_team_cost(opt_team)
+                team_cost = compute_team_cost(opt_team,P)
 
                 # update UB and T if possible.
                 if team_cost < ub:
@@ -191,7 +193,7 @@ def branch_bound():
             child1.set_value(master_val_opt)
 
             # Update UB and T if possible
-            team_cost = compute_team_cost(y_opt)
+            team_cost = compute_team_cost(y_opt, P)
             if team_cost < ub:
                 ub = team_cost
                 T = y_opt
@@ -229,7 +231,7 @@ def branch_bound():
 
                 opt_team = zeta_opt
                 opt_team[i] = 1  # i is in the team of subproblem i
-                team_cost = compute_team_cost(opt_team)
+                team_cost = compute_team_cost(opt_team, P)
 
                 # update UB and T if possible.
                 if team_cost < ub:
@@ -250,7 +252,7 @@ def branch_bound():
 
                 opt_team = zeta_opt
                 opt_team[j] = 1  # j is in the team of subproblem j
-                team_cost = compute_team_cost(opt_team)
+                team_cost = compute_team_cost(opt_team, P)
 
                 # update UB and T if possible.
                 if team_cost < ub:
@@ -269,10 +271,10 @@ def branch_bound():
             child2.set_value(master_val_opt)
 
             # Update UB and T if possible
-            team_cost = compute_team_cost(y_opt)
+            team_cost = compute_team_cost(y_opt, P)
             if team_cost < ub:
                 ub = team_cost
-                T = y_opt
+                T = y_op
 #            print(f"lb = {lb}, ub = {ub}")
 
             if child2.get_value() < ub:     # else prune by bound
@@ -288,11 +290,12 @@ def branch_bound():
         lb = min_v
 
     end = time.time()
+    run_time = end - start
     print(f"time branch_bound: {end - start}")
-    return ub, T
+    return ub, T, run_time
 
 
-def branch_pair(y:list[bool], z:list[list[bool]]) -> tuple[int,int]:
+def branch_pair(y:list[bool], z:list[list[bool]], dim:int) -> tuple[int,int]:
     pair = None
     for i in range (dim):
         if y[i]:
@@ -314,19 +317,19 @@ def branch_pair(y:list[bool], z:list[list[bool]]) -> tuple[int,int]:
     return pair
 
 
-def compute_team_cost(x:list[bool]):
-    return (P@np.array(x))@np.array(x)
+def compute_team_cost(x:list[bool], P:list[list[float]]) -> float:
+    return float((P@np.array(x))@np.array(x))
 
 
 
 
 
-ub, T = branch_bound()
+# ub, T = branch_bound()
 
-print(ub)
-print(T)
-
-print(f"Optimal value = {ub} \n Members of the team:")
-for i in range(dim):
-    if T[i] > 0:
-        print(i)
+# print(ub)
+# print(T)
+#
+# print(f"Optimal value = {ub} \n Members of the team:")
+# for i in range(dim):
+#     if T[i] > 0:
+#         print(i)

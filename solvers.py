@@ -38,6 +38,8 @@ class Solvers:
         print("instantiating subproblem model")
         self.sub_m = Model("sub_model")
         self.sub_m.setParam('OutputFlag', 0)
+        self.sub_m.setParam("Heuristics", 0)
+        self.sub_m.setParam("Presolve", 0)
 
         self.zeta = self.sub_m.addMVar(shape=self.dim, name="zeta", vtype=GRB.BINARY)
 
@@ -59,6 +61,8 @@ class Solvers:
         print("instantiating master model")
         self.master_m = Model("master_model")
         self.master_m.setParam('OutputFlag', 0)
+        self.master_m.setParam("Heuristics", 0)
+        self.master_m.setParam("Presolve", 0)
 
         self.y = self.master_m.addMVar(shape=self.dim, name="y", vtype=GRB.BINARY)
         self.master_m.setObjective(0)
