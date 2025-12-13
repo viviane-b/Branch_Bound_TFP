@@ -21,25 +21,13 @@ def read_data() -> (list[list[float]], list[list[bool]]):
     return P, skills
 
 
-# TO DELETE
-def read_small_data(dist, skills, small_dim = 50):
-
-    small_dist = dist.iloc[:small_dim, :small_dim]
-    small_P = np.triu(small_dist, k=1)
-    small_skills = skills.iloc[:small_dim]
-
-    vector = small_skills[5].values
-
-    return small_P, vector
-
-
 def get_req_skills(m:int, seed:int) -> list:
     req_skill_sets = pd.read_csv("TFP-data-master/imdb_instance_information.txt", sep="\t", index_col=False)
     row =  req_skill_sets.loc[(req_skill_sets['m'].eq(m)) & req_skill_sets['seed'].eq(f"seed={seed}")]
     req_skills  = row["skills"].values
     req_skills = ast.literal_eval(req_skills[0])
     req_skills = list(req_skills)
-    print(req_skills)
+    print(f"required skills: {req_skills}")
     return req_skills
 
 
@@ -67,5 +55,3 @@ def preprocess_P(P:list[list[float]], skills:[list[list[bool]]], req_skills:list
 """
 NOTE: they didn't keep the original candidate number in the solution of the paper. I will do the same.
 """
-# TODO: could be an improvement from the paper to keep track of the original candidate numbers!
-# TODO: other improvement: test on unfeasible cases

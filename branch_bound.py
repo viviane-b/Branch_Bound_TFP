@@ -1,19 +1,12 @@
 import time
 
 import numpy as np
-from Node import *
+from node import *
 from solvers import *
 
-# dim = 1021
-
-# P, skills = read_data()
-# req_skills = get_req_skills(4, 4)
-# P, skills = preprocess_P(P, skills, req_skills )
-# dim = len(P)
-# print(dim)
-
-# example of network from the paper
 """
+# example of network from the paper
+
 dim = 5
 P = [[0, 0.8, 0.9, 1.5, 1.3],
      [0, 0, 1.4, 0.9, 1.6],
@@ -25,14 +18,11 @@ skills = [[1, 0, 0],    # round
           [0, 0, 1],    # losange
           [0, 0, 1],
           [1, 0, 0]]
-# from example
 req_skills = [0,1,2]
 """
 
 big_Number = 10000000
 eps = 0.0001
-
-
 
 # there are N candidates
 
@@ -57,8 +47,6 @@ def branch_bound(P:list[list[float]], skills:list[list[bool]], req_skills:list[i
 
         # update model for every n
         zeta_opt, value_opt = solvers.solve_subproblem_root(n)
-
-        # zeta_opt, value_opt = solve_subproblem(n, root.get_C1(), root.get_C2(), dim, P_symmetric, skills, req_skills)
 
         root.set_sub_value(value_opt, n)
 
@@ -90,7 +78,6 @@ def branch_bound(P:list[list[float]], skills:list[list[bool]], req_skills:list[i
     if team_cost < ub:
         ub = team_cost
         T = y_opt
-#    print(f"lb = {lb}, ub = {ub}")
 
     #  if LB<UB, then Q= {0}
     if lb < ub:
@@ -101,10 +88,9 @@ def branch_bound(P:list[list[float]], skills:list[list[bool]], req_skills:list[i
         # next node is the one in the queue that has the minimum value: best-first-search
         min_v = big_Number
         if len(queue) ==0:
-            # TODO: algo is over?
             break
         curr_node = queue[0]
-        for elem in queue:      # TODO: optimize finding the min
+        for elem in queue:
             if elem.get_value() < min_v:
                 curr_node = elem
                 min_v = curr_node.get_value()
@@ -124,7 +110,6 @@ def branch_bound(P:list[list[float]], skills:list[list[bool]], req_skills:list[i
         # Create child node l1
         node_counter += 1
         child1 = Node(node_counter, dim)
-#        print(f"child 1 created, #{node_counter}, from parent node #{curr_node.get_l()}")
 
         child1.set_sub_values(curr_node.get_sub_values().copy())
         child1.set_zetas(curr_node.get_zetas().copy())
@@ -134,10 +119,7 @@ def branch_bound(P:list[list[float]], skills:list[list[bool]], req_skills:list[i
         new_C1.append(pair)
         child1.set_C1(new_C1)      # pair should not be on the same team
         child1.set_C2(curr_node.get_C2().copy())
-#        print(f"CHILD 1 \n C1: {child1.get_C1()}")
-#        print(f"C2: {child1.get_C2()}")
-#        print(f"zetas: {child1.get_zetas()}")
-#        print(f"sub_values: {child1.get_sub_values()}")
+
 
         if child1.get_zetas()[i][j] == 1:
             # Solve Pr_i
@@ -155,7 +137,6 @@ def branch_bound(P:list[list[float]], skills:list[list[bool]], req_skills:list[i
                 if team_cost < ub:
                     ub = team_cost
                     T = opt_team
-#                print(f"lb = {lb}, ub = {ub}")
 
             else:
                 child1.set_sub_value(big_Number, i)
@@ -176,16 +157,12 @@ def branch_bound(P:list[list[float]], skills:list[list[bool]], req_skills:list[i
                 if team_cost < ub:
                     ub = team_cost
                     T = opt_team
-#                print(f"lb = {lb}, ub = {ub}")
 
             else:
                 child1.set_sub_value(big_Number, j)
 
         # Solve relaxed master problem
-        #start = time.time()
         y_opt, master_val_opt = solvers.solve_master(child1.get_sub_values(), child1.get_C1(), child1.get_C2())
-        #end = time.time()
-        #print(f"time solving master: {end - start}")
 
         if y_opt is not None and master_val_opt is not None:    # else prune by infeasibility
             child1.set_y_star(y_opt)
@@ -197,18 +174,15 @@ def branch_bound(P:list[list[float]], skills:list[list[bool]], req_skills:list[i
             if team_cost < ub:
                 ub = team_cost
                 T = y_opt
-#            print(f"lb = {lb}, ub = {ub}")
 
             if child1.get_value() < ub:     # else prune by bound
                 # Add this node to the queue to be branched again
                 queue.append(child1)
 
-#        print(f"node #{child1.get_l()} zetas = {child1.get_zetas()} \n")
 
         # Create node l2
         node_counter += 1
         child2 = Node(node_counter, dim)
-#        print(f"child 2 created, #{node_counter}, from parent node #{curr_node.get_l()} ")
 
         child2.set_sub_values(curr_node.get_sub_values().copy())
         child2.set_zetas(curr_node.get_zetas().copy())
@@ -217,9 +191,8 @@ def branch_bound(P:list[list[float]], skills:list[list[bool]], req_skills:list[i
         new_C2 = curr_node.get_C2().copy()
         new_C2.append(pair)
         child2.set_C1(curr_node.get_C1().copy())
-#        print(f"child 2 C1 = {child2.get_C1()}")
         child2.set_C2(new_C2)           # i and j should be in the same team
-#        print(f"child 2 C2 = {child2.get_C2()}")
+
 
         if child2.get_zetas()[i][j] == 0:
             # Solve Pr_i
@@ -237,7 +210,6 @@ def branch_bound(P:list[list[float]], skills:list[list[bool]], req_skills:list[i
                 if team_cost < ub:
                     ub = team_cost
                     T = opt_team
-#                print(f"lb = {lb}, ub = {ub}")
 
             else:
                 child2.set_sub_value(big_Number, i)
@@ -258,7 +230,6 @@ def branch_bound(P:list[list[float]], skills:list[list[bool]], req_skills:list[i
                 if team_cost < ub:
                     ub = team_cost
                     T = opt_team
-#                print(f"lb = {lb}, ub = {ub}")
 
             else:
                 child2.set_sub_value(big_Number, j)
@@ -274,13 +245,12 @@ def branch_bound(P:list[list[float]], skills:list[list[bool]], req_skills:list[i
             team_cost = compute_team_cost(y_opt, P)
             if team_cost < ub:
                 ub = team_cost
-                T = y_op
-#            print(f"lb = {lb}, ub = {ub}")
+                T = y_opt
 
             if child2.get_value() < ub:     # else prune by bound
                 # Add this node to the queue to be branched again
                 queue.append(child2)
-#        print(f"node #{child2.get_l()} zetas = {child2.get_zetas()} \n")
+
 
         # Compute lower bound
         min_v = big_Number
@@ -313,7 +283,7 @@ def branch_pair(y:list[bool], z:list[list[bool]], dim:int) -> tuple[int,int]:
                         pair = (i,j)
                         print("type 2 pair")
                         return pair
-#    print(f"pair = {pair}")
+
     return pair
 
 
@@ -322,14 +292,3 @@ def compute_team_cost(x:list[bool], P:list[list[float]]) -> float:
 
 
 
-
-
-# ub, T = branch_bound()
-
-# print(ub)
-# print(T)
-#
-# print(f"Optimal value = {ub} \n Members of the team:")
-# for i in range(dim):
-#     if T[i] > 0:
-#         print(i)

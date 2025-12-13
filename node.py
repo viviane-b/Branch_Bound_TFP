@@ -49,8 +49,6 @@ class Node:
 
 
     def compute_z_values(self, dim:int):
-        #z = list[list[bool]]
-        #z = [[None for j in range(dim)] for i in range(dim)]  # N*N matrix
         for i in range(dim):
             for j in range(dim):
                 if i != j:

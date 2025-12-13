@@ -67,7 +67,6 @@ class Solvers:
         self.y = self.master_m.addMVar(shape=self.dim, name="y", vtype=GRB.BINARY)
         self.master_m.setObjective(0)
         for skill_no in self.req_skills:
-            # TODO write constraint with LinExpr
             self.master_m.addConstr(sum(self.skills[i][skill_no] * self.y[i] for i in range(self.dim)) >= 1,
                                           name = f"skill_{skill_no}")
 
@@ -89,17 +88,14 @@ class Solvers:
                 constr.RHS = 1      # constraint is active
             else:
                 constr.RHS = 0      # constraint is inactive
-                # TODO make sure rhs is restored after each iteration
 
 
         self.sub_m.optimize()
-        # print(f"Runtime: {self.m.Runtime}")
+
         if self.sub_m.status == GRB.OPTIMAL:
             zeta_opt = self.sub_m.getAttr("X", self.sub_m.getVars())
             value_opt = self.sub_m.ObjVal
 
-            #        print(f"zeta_opt = {zeta_opt}")
-            #        print(f"value_opt = {value_opt})")
             return zeta_opt, value_opt
 
         elif self.sub_m.status == GRB.INFEASIBLE:
@@ -124,6 +120,7 @@ class Solvers:
                 constr.RHS = 1  # constraint is active
             else:
                 constr.RHS = 0  # constraint is inactive
+
 
         # C1, C2 constraints
 
@@ -157,13 +154,10 @@ class Solvers:
 
 
         self.sub_m.optimize()
-        # print(f"Runtime: {self.m.Runtime}")
         if self.sub_m.status == GRB.OPTIMAL:
             zeta_opt = self.sub_m.getAttr("X", self.sub_m.getVars())
             value_opt = self.sub_m.ObjVal
 
-            #        print(f"zeta_opt = {zeta_opt}")
-            #        print(f"value_opt = {value_opt})")
             return zeta_opt, value_opt
 
         elif self.sub_m.status == GRB.INFEASIBLE:
@@ -211,92 +205,3 @@ class Solvers:
         elif self.master_m.status == GRB.INFEASIBLE:
             print("unfeasible")
             return None, None
-
-
-    # to delete after
-def solve_subproblem(n:int, C1:list[tuple[int]], C2:list[tuple[int]], dim:int, P_symmetric:list[list[float]], skills:list[list[bool]], req_skills:list[int]):
-#    print("\n ---- solving subproblem n=", n)
-    m = Model("subproblem")
-
-    zeta = m.addMVar(shape=dim, name="zeta", vtype=GRB.BINARY)
-
-    obj = sum(P_symmetric[i][n] * zeta[i] for i in range (0, n)) + sum(P_symmetric[i][n] * zeta[i] for i in range (n + 1, dim))
-    m.setObjective(obj, GRB.MINIMIZE)
-
-    # All skills should be covered
-    for skill_no in req_skills:
-        if skills[n][skill_no] == 0:    # candidate n does not possess the skill. Another member of the team has to have it
-            m.addConstr(sum(skills[i][skill_no] * zeta[i] for i in range (0, n))
-                        +sum(skills[i][skill_no] * zeta[i] for i in range (n+1, dim)) >= 1)
-
-    for pair in C1:    # pair of candidates that should not be on the same team
-        if n in pair:   # check only pairs that contain n       # TODO: maybe some optimization on the loop?
-            i = pair[0] if pair[0] != n else pair[1]
-            m.addConstr(zeta[i]==0)
-
-    for pair in C2:    # pair of candidates that should be on the same team
-        if n in pair:   # check only pairs that contain n
-            i = pair[0] if pair[0] != n else pair[1]
-            m.addConstr(zeta[i]==1)
-
-    m.setParam('OutputFlag', 0)
-    m.optimize()
-    print(m.getA())
-    print(f"Runtime: {m.Runtime}")
-    if m.status == GRB.OPTIMAL:
-        zeta_opt = m.getAttr("X", m.getVars())
-        value_opt = m.ObjVal
-
-
-#        print(f"zeta_opt = {zeta_opt}")
-#        print(f"value_opt = {value_opt})")
-        return zeta_opt, value_opt
-
-    elif m.status == GRB.INFEASIBLE:
-        print("unfeasible")
-        return None, None
-
-    # TODO what if status is FEASIBLE  or other?
-
-
-# v: values of the subproblems. Size N
-def solve_master_problem(v:list[float], C1:list[tuple[int]], C2:list[tuple[int]], dim:int, skills:list[list[bool]], req_skills:list[int]):
-#    print("\n ----- solving master problem")
-
-    m = Model("master_problem")
-
-    y = m.addMVar(shape=dim, name="y", vtype=GRB.BINARY)
-
-    obj = sum(v[j]*y[j] for j in range (dim))/2
-    m.setObjective(obj, GRB.MINIMIZE)
-
-    # All skills should be covered
-    for skill_no in req_skills:
-        m.addConstr(sum(skills[j][skill_no]*y[j] for j in range(dim)) >= 1)
-
-    for pair in C1:     # pair of candidates that should not be on the same team
-        m.addConstr(y[pair[0]] + y[pair[1]] <= 1)
-
-    for pair in C2:     # pair of candidates that should be on the same team
-        m.addConstr(y[pair[0]] == 1)
-        m.addConstr(y[pair[1]] == 1)
-
-    m.setParam('OutputFlag', 0)
-    m.optimize()
-    print(f"Runtime: {m.Runtime}")
-
-    if m.status == GRB.OPTIMAL:
-
-        y_opt = m.getAttr("X", m.getVars())
-        val_opt = m.ObjVal
-
-#        print(f"subproblem y_opt = {y_opt}")
-#        print(f"subproblem val_opt = {val_opt}")
-
-        return y_opt, val_opt
-
-    elif m.status == GRB.INFEASIBLE:
-#        print("unfeasible")
-        return None, None
-
-
